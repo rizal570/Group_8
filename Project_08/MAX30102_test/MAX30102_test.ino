@@ -9,7 +9,7 @@ const char* serverName = "http://192.168.69.205:5000/sensor/data";
 
 MAX30105 particleSensor;
 
-
+int counter;
 const byte RATE_SIZE = 4; //Increase this for more averaging. 4 is good.
 byte rates[RATE_SIZE]; //Array of heart rates
 byte rateSpot = 0;
@@ -65,32 +65,8 @@ void setup() {
   particleSensor.setPulseAmplitudeGreen(0); //Turn off Green LED
 }
 
-void postData() {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    http.begin(serverName);
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-
-    // Create form data
-    char httpRequestData[100];
-    sprintf(httpRequestData, "beatsPerMinute=%f&SpO2=%f", beatsPerMinute, SpO2);
-
-    int httpResponseCode = http.POST(httpRequestData);
-
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.println(httpResponseCode);
-      Serial.println(response);
-    } else {
-      Serial.print("Error on sending POST: ");
-      Serial.println(httpResponseCode);
-    }
-    http.end();
-  } else {
-    Serial.println("Error in WiFi connection");
-  }
-}
 void loop() {
+  counter++;
   long irValue = particleSensor.getIR();    //Reading the IR value it will permit us to know if there's a finger on the sensor or not
   if (irValue > FINGER_ON ) {
      if (checkForBeat(irValue) == true) {
@@ -140,7 +116,8 @@ void loop() {
     
     if (beatAvg > 30)  Serial.println(",SPO2:" + String(ESpO2));
     else Serial.println(",SPO2:" + String(ESpO2));
-    postData();
+    postData(counter, counter+1);
+    delay(1000);
   }
   else {
     for (byte rx = 0 ; rx < RATE_SIZE ; rx++) rates[rx] = 0;
@@ -148,4 +125,30 @@ void loop() {
     avered = 0; aveir = 0; sumirrms = 0; sumredrms = 0;
     SpO2 = 0; ESpO2 = 90.0;
    }
+ 
+}
+void postData(float beatPerMinute, double SPO2) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverName);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    // Create form data
+    char httpRequestData[100];
+    sprintf(httpRequestData, "beatsPerMinute=%f&SpO2=%f", beatsPerMinute, SpO2);
+
+    int httpResponseCode = http.POST(httpRequestData);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.println(httpResponseCode);
+      Serial.println(response);
+    } else {
+      Serial.print("Error on sending POST: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  } else {
+    Serial.println("Error in WiFi connection");
+  }
 }
